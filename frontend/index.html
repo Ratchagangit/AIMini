@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Gesture Controlled Racing Game – steer your car with real-time hand gestures using your webcam. Built with MediaPipe, Flask, and HTML5 Canvas." />
+  <title>Gesture Racing – AI Hand-Controlled Racing Game</title>
+
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<section id="screen-welcome" class="screen active">
+  <div class="screen-bg-grid"></div>
+  <div class="welcome-content">
+    <div class="logo-wrapper">
+      <div class="logo-ring"></div>
+      <div class="logo-ring ring2"></div>
+      <div class="logo-icon">🏎️</div>
+    </div>
+    <h1 class="game-title">GESTURE<br/><span class="title-accent">RACING</span></h1>
+    <p class="game-subtitle">Control your car with your hands</p>
+    <div class="welcome-buttons">
+      <button id="btn-play" class="btn btn-primary glow-btn">
+        <span class="btn-icon">▶</span> PLAY GAME
+      </button>
+      <button id="btn-instructions" class="btn btn-secondary">
+        <span class="btn-icon">?</span> HOW TO PLAY
+      </button>
+      <button id="btn-leaderboard" class="btn btn-secondary">
+        <span class="btn-icon">🏆</span> LEADERBOARD
+      </button>
+    </div>
+    <div class="version-tag">v1.0 · AI-Powered · WebCam Required</div>
+  </div>
+  
+  <div class="bg-cars">
+    <div class="bg-car bc1"></div>
+    <div class="bg-car bc2"></div>
+    <div class="bg-car bc3"></div>
+  </div>
+</section>
+
+<section id="screen-instructions" class="screen">
+  <div class="screen-bg-grid"></div>
+  <div class="instructions-content">
+    <h2 class="section-title">HOW TO <span class="title-accent">PLAY</span></h2>
+    <div class="gesture-grid">
+      <div class="gesture-card">
+        <div class="gesture-icon hand-left">👈</div>
+        <h3>Move Left</h3>
+        <p>Tilt your hand to the <strong>left</strong> side of the camera</p>
+      </div>
+      <div class="gesture-card">
+        <div class="gesture-icon hand-right">👉</div>
+        <h3>Move Right</h3>
+        <p>Tilt your hand to the <strong>right</strong> side of the camera</p>
+      </div>
+      <div class="gesture-card">
+        <div class="gesture-icon">🖐️</div>
+        <h3>Accelerate</h3>
+        <p>Spread all fingers open for a <strong>speed boost</strong></p>
+      </div>
+      <div class="gesture-card">
+        <div class="gesture-icon">✊</div>
+        <h3>Brake</h3>
+        <p>Make a <strong>fist</strong> to slow down / pause</p>
+      </div>
+    </div>
+    <div class="tips-box">
+      <h3>💡 Tips</h3>
+      <ul>
+        <li>Keep your hand <strong>30–60 cm</strong> from the camera</li>
+        <li>Ensure <strong>good lighting</strong> for best detection</li>
+        <li>You can also use <strong>arrow keys</strong> as fallback</li>
+        <li>Avoid busy backgrounds</li>
+      </ul>
+    </div>
+    <div class="instructions-buttons">
+      <button id="btn-start-game" class="btn btn-primary glow-btn">
+        <span class="btn-icon">▶</span> START RACING
+      </button>
+      <button id="btn-back-welcome" class="btn btn-ghost">← BACK</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-game" class="screen">
+  
+  <canvas id="game-canvas"></canvas>
+
+  
+  <div id="hud">
+    <div class="hud-left">
+      <div class="hud-score">
+        <div class="hud-label">SCORE</div>
+        <div class="hud-value" id="hud-score">0</div>
+      </div>
+      <div class="hud-score">
+        <div class="hud-label">BEST</div>
+        <div class="hud-value hud-gold" id="hud-best">0</div>
+      </div>
+    </div>
+    <div class="hud-center">
+      
+      <div class="speedometer" id="speedometer">
+        <svg viewBox="0 0 100 100" class="speedo-svg">
+          <circle class="speedo-bg" cx="50" cy="50" r="40" />
+          <circle class="speedo-fill" id="speedo-arc" cx="50" cy="50" r="40"
+            stroke-dasharray="0 251.2" />
+          <text class="speedo-label" x="50" y="54" text-anchor="middle" id="speedo-num">0</text>
+          <text class="speedo-unit" x="50" y="65" text-anchor="middle">km/h</text>
+        </svg>
+      </div>
+    </div>
+    <div class="hud-right">
+      <div class="hud-stat">
+        <div class="hud-label">LEVEL</div>
+        <div class="hud-value" id="hud-level">1</div>
+      </div>
+      <div class="hud-stat">
+        <div class="hud-label">FPS</div>
+        <div class="hud-value hud-small" id="hud-fps">60</div>
+      </div>
+    </div>
+  </div>
+
+  
+  <div id="gesture-status">
+    <div id="gesture-indicator" class="gesture-dot"></div>
+    <span id="gesture-label">Waiting for hand...</span>
+  </div>
+
+  
+  <div id="webcam-panel">
+    <div class="webcam-header">
+      <div class="cam-dot"></div>
+      <span>CAMERA</span>
+      <button id="btn-toggle-cam" title="Toggle camera">👁</button>
+    </div>
+    <div class="webcam-wrapper">
+      <video id="webcam-video" autoplay muted playsinline></video>
+      <canvas id="webcam-overlay" class="webcam-canvas"></canvas>
+      
+    </div>
+    <div class="cam-status" id="cam-status">Initialising...</div>
+  </div>
+
+  
+  <button id="btn-pause" class="pause-btn">⏸</button>
+</section>
+
+<section id="screen-pause" class="screen overlay-screen">
+  <div class="modal-box">
+    <h2 class="modal-title">PAUSED</h2>
+    <div class="pause-stats">
+      <div class="stat-row"><span>Current Score</span><strong id="pause-score">0</strong></div>
+      <div class="stat-row"><span>Speed</span><strong id="pause-speed">0 km/h</strong></div>
+      <div class="stat-row"><span>Level</span><strong id="pause-level">1</strong></div>
+    </div>
+    <div class="modal-buttons">
+      <button id="btn-resume" class="btn btn-primary glow-btn">▶ RESUME</button>
+      <button id="btn-quit" class="btn btn-ghost">🏁 QUIT TO MENU</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-gameover" class="screen overlay-screen">
+  <div class="modal-box gameover-box">
+    <div class="crash-icon">💥</div>
+    <h2 class="modal-title red-title">GAME OVER</h2>
+    <div class="gameover-scores">
+      <div class="score-big">
+        <div class="score-label">YOUR SCORE</div>
+        <div class="score-value" id="go-score">0</div>
+      </div>
+      <div class="score-big">
+        <div class="score-label">BEST SCORE</div>
+        <div class="score-value gold-value" id="go-best">0</div>
+      </div>
+    </div>
+    <div class="name-entry">
+      <label for="player-name">Enter your name for the leaderboard:</label>
+      <input type="text" id="player-name" maxlength="20" placeholder="ACE RACER" class="name-input" />
+      <button id="btn-save-score" class="btn btn-secondary">💾 SAVE SCORE</button>
+    </div>
+    <div class="modal-buttons">
+      <button id="btn-play-again" class="btn btn-primary glow-btn">🔄 PLAY AGAIN</button>
+      <button id="btn-go-menu" class="btn btn-ghost">🏁 MAIN MENU</button>
+    </div>
+  </div>
+</section>
+
+<section id="screen-leaderboard" class="screen">
+  <div class="screen-bg-grid"></div>
+  <div class="leaderboard-content">
+    <h2 class="section-title">🏆 LEADERBOARD</h2>
+    <div class="lb-table-wrapper">
+      <table class="lb-table" id="lb-table">
+        <thead>
+          <tr><th>#</th><th>PILOT</th><th>SCORE</th><th>DATE</th></tr>
+        </thead>
+        <tbody id="lb-body">
+          <tr><td colspan="4" class="lb-loading">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <button id="btn-lb-back" class="btn btn-ghost">← BACK</button>
+  </div>
+</section>
+
+<canvas id="capture-canvas" style="display:none;"></canvas>
+
+<script src="script.js"></script>
+</body>
+</html>
